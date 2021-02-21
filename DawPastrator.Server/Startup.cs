@@ -1,3 +1,5 @@
+using DawPastrator.Server.Services;
+
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
@@ -33,8 +35,10 @@ namespace DawPastrator.Server
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "DawPastrator.Server", Version = "v1" });
             });
 
-            services.AddAuthentication("Cookies") // cookie 身份验证
-                    .AddCookie("Cookies");
+            services.AddSingleton<IDawAuthenticationService>(new DefaultDawAuthenticationService());
+
+            services.AddAuthentication(StringConstant.Cookies) // cookie 身份验证
+                    .AddCookie(StringConstant.Cookies);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
