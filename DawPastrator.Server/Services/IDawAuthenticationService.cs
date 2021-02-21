@@ -19,7 +19,7 @@ namespace DawPastrator.Server.Services
         {
             var claims = new Claim[]
             {
-                new (ClaimTypes.Name, "id"),
+                new (ClaimTypes.Name, model.UserId),
                 new (ClaimTypes.NameIdentifier, model.UserId)
             };
 

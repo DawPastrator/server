@@ -35,7 +35,8 @@ namespace DawPastrator.Server
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "DawPastrator.Server", Version = "v1" });
             });
 
-            services.AddSingleton<IDawAuthenticationService>(new DefaultDawAuthenticationService());
+            services.AddSingleton<IDawAuthenticationService>(new DefaultDawAuthenticationService())
+                    .AddSingleton<IDataStorageService>(new DefaultDataStorageService());
 
             services.AddAuthentication(StringConstant.Cookies) // cookie 身份验证
                     .AddCookie(StringConstant.Cookies);
