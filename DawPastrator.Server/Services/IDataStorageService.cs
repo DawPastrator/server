@@ -9,15 +9,15 @@ namespace DawPastrator.Server.Services
 {
     public interface IDataStorageService
     {
-        public Task Store(string userId, DataStorageModel model);
-        public Task<DataStorageModel?> Get(string userId);
+        public Task Store(int userId, DataStorageModel model);
+        public Task<DataStorageModel?> Get(int userId);
     }
 
     public class DefaultDataStorageService : IDataStorageService
     {
-        public Task<DataStorageModel?> Get(string userId)
+        public Task<DataStorageModel?> Get(int userId)
         {
-            if (userId == "")
+            if (userId == 25565)
             {
                 return Task.FromResult(default(DataStorageModel));
             }
@@ -25,13 +25,12 @@ namespace DawPastrator.Server.Services
             {
                 return Task.FromResult(new DataStorageModel
                 {
-                    Time = DateTime.Now,
                     Bs4Data = "abcdefg"
                 });
             }
         }
 
-        public Task Store(string userId, DataStorageModel model)
+        public Task Store(int userId, DataStorageModel model)
         {
             return Task.CompletedTask;
         }

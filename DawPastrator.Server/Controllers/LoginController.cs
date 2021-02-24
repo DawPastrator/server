@@ -34,7 +34,6 @@ namespace DawPastrator.Server.Controllers
             await HttpContext.SignOutAsync();
         }
 
-        // POST api/<LoginController>
         [HttpPost]
         public async Task Login([FromBody] UserLoginModel model)
         {

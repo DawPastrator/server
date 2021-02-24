@@ -7,7 +7,7 @@ namespace DawPastrator.Server.Models
 {
     public record DataStorageModel
     {
-        public DateTime Time { get; set; }
+        public DeviceModel Device { get; set; } = new DeviceModel();
         public string Bs4Data { get; set; } = "";
     }
 }
