@@ -16,6 +16,7 @@ namespace DawPastrator.Server.Services
         // TODO 返回状态码而不是bool
 
         bool CreateTables();
+
         bool CreateAccount(in string userName, in string masterPassword);
 
         int GetUserID(in string userName);
@@ -32,7 +33,7 @@ namespace DawPastrator.Server.Services
 
         bool UpdateDevicesAndPublicKeysInfo(in int userID, in byte[] devicesAndPublicKeysInfo);
 
-        bool deleteAccount(in int userID);
+        bool DeleteAccount(in int userID);
     }
 
     class ISqliteDatabaseServices : IDatabaseServices
@@ -303,7 +304,7 @@ namespace DawPastrator.Server.Services
         /// </summary>
         /// <param name="userID"></param>
         /// <returns></returns>
-        public bool deleteAccount(in int userID)
+        public bool DeleteAccount(in int userID)
         {
             // 这里可以加判断，判断用户ID是否是存在且唯一的
 
