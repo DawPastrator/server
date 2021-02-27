@@ -19,8 +19,8 @@ namespace DawPastrator.Server.Services
         {
             var claims = new Claim[]
             {
-                new (ClaimTypes.Name, model.UserId),
-                new (ClaimTypes.NameIdentifier, model.UserId)
+                new (ClaimTypes.Name, model.UserName),
+                new (ClaimTypes.UserData, 0.ToString())
             };
 
             var identity = new ClaimsIdentity(claims, StringConstant.Cookies);

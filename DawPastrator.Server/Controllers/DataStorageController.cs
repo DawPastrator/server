@@ -1,5 +1,6 @@
 ﻿using DawPastrator.Server.Models;
 using DawPastrator.Server.Services;
+using DawPastrator.Server.Utils;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -8,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace DawPastrator.Server.Controllers
@@ -27,18 +29,24 @@ namespace DawPastrator.Server.Controllers
         [Authorize]
         public async Task<DataStorageModel> GetData()
         {
-            string userId = HttpContext.User.Identity?.Name ?? "";
-
-            return await dataStorageService.Get(userId);
+            if (HttpContext.User.TryGetUserId(out var userId))
+            {
+                return await dataStorageService.Get(userId);
+            }
+            else
+            {
+                return null;
+            }
         }
 
         [HttpPost]
         [Authorize]
         public async Task Store([FromBody] DataStorageModel model)
         {
-            string userId = HttpContext.User.Identity?.Name ?? "";
-
-            await dataStorageService.Store(userId, model);
+            if (HttpContext.User.TryGetUserId(out var userId))
+            {
+                await dataStorageService.Store(userId, model);
+            }
         }
     }
 }

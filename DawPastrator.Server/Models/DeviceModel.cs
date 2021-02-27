@@ -5,9 +5,9 @@ using System.Threading.Tasks;
 
 namespace DawPastrator.Server.Models
 {
-    public record UserLoginModel
+    public record DeviceModel
     {
-        public string UserName { get; set; } = "";
-        public string Password { get; set; } = "";
+        public string DeviceName { get; set; }
+        public string PublicKey { get; set; }
     }
 }
