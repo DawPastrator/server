@@ -9,8 +9,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DawPastrator.Server.Test", 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DawPastrator.Core", "DawPastrator.Core\DawPastrator.Core.csproj", "{25FAE5EB-D28C-42A4-BB3C-6141D8BBD875}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "test", "..\..\test\c#\test\test.csproj", "{7D611C6F-1F2B-4CA5-9A62-EB83C801E616}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -29,10 +27,6 @@ Global
 		{25FAE5EB-D28C-42A4-BB3C-6141D8BBD875}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{25FAE5EB-D28C-42A4-BB3C-6141D8BBD875}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{25FAE5EB-D28C-42A4-BB3C-6141D8BBD875}.Release|Any CPU.Build.0 = Release|Any CPU
-		{7D611C6F-1F2B-4CA5-9A62-EB83C801E616}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{7D611C6F-1F2B-4CA5-9A62-EB83C801E616}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{7D611C6F-1F2B-4CA5-9A62-EB83C801E616}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{7D611C6F-1F2B-4CA5-9A62-EB83C801E616}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

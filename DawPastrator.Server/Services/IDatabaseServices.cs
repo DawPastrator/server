@@ -17,23 +17,23 @@ namespace DawPastrator.Server.Services
 
         bool CreateTables();
 
-        bool CreateAccount(in string userName, in string masterPassword);
+        bool CreateAccount(string userName, string masterPassword);
 
-        int GetUserID(in string userName);
+        int GetUserID(string userName);
 
-        string GetMasterPassword(in int userID);
+        string GetMasterPassword(int userID);
 
-        byte[] GetPasswordsData(in int userID);
+        byte[] GetPasswordsData(int userID);
 
-        byte[] GetDevicesAndPublicKeysInfo(in int userID);
+        byte[] GetDevicesAndPublicKeysInfo(int userID);
 
-        bool UpdateMasterPassword(in int userID, in string masterPassword);
+        bool UpdateMasterPassword(int userID, string masterPassword);
 
-        bool UpdatePasswordsData(in int userID, in byte[] passwordsData);
+        bool UpdatePasswordsData(int userID, byte[] passwordsData);
 
-        bool UpdateDevicesAndPublicKeysInfo(in int userID, in byte[] devicesAndPublicKeysInfo);
+        bool UpdateDevicesAndPublicKeysInfo(int userID, byte[] devicesAndPublicKeysInfo);
 
-        bool DeleteAccount(in int userID);
+        bool DeleteAccount(int userID);
 
     }
 
@@ -53,7 +53,7 @@ namespace DawPastrator.Server.Services
             GC.SuppressFinalize(this);
         }
 
-        private bool TableHasBeenCreated(in string tableName)
+        private bool TableHasBeenCreated(string tableName)
         {
             Console.WriteLine("Checking if the {0} table has been created.", tableName);
 
@@ -121,7 +121,7 @@ namespace DawPastrator.Server.Services
             return hasAlreadyCreated || TableHasBeenCreated("user_data");
         }
 
-        private bool UserNameHasAlreadyExists(in string userName)
+        private bool UserNameHasAlreadyExists(string userName)
         {
             using var command = connection_.CreateCommand();
 
@@ -132,7 +132,7 @@ namespace DawPastrator.Server.Services
             return reader.Read();
         }
 
-        public bool CreateAccount(in string userName, in string masterPassword)
+        public bool CreateAccount(string userName, string masterPassword)
         {
             using var command = connection_.CreateCommand();
 
@@ -161,7 +161,7 @@ namespace DawPastrator.Server.Services
         /// </summary>
         /// <param name="userName">用户名</param>
         /// <returns>用户ID，或者-1表示失败</returns>
-        public int GetUserID(in string userName)
+        public int GetUserID(string userName)
         {
             using var command = connection_.CreateCommand();
             command.CommandText = "SELECT userID FROM user_data WHERE userName = $userName";
@@ -184,7 +184,7 @@ namespace DawPastrator.Server.Services
         /// </summary>
         /// <param name="userID">用户ID</param>
         /// <returns>主密码，或者空字符串表示失败</returns>
-        public string GetMasterPassword(in int userID)
+        public string GetMasterPassword(int userID)
         {
             using var command = connection_.CreateCommand();
             command.CommandText = "SELECT masterPassword FROM user_data WHERE userID = $userID";
@@ -208,7 +208,7 @@ namespace DawPastrator.Server.Services
         /// <param name="userID">用户ID</param>
         /// <param name="requiredfield">要求获得的字段名</param>
         /// <returns>二进制数据</returns>
-        private byte[] GetBlobData(in int userID, in string requiredfield)
+        private byte[] GetBlobData(int userID, string requiredfield)
         {
             using var command = connection_.CreateCommand();
             command.CommandText = "SELECT " + requiredfield + " FROM user_data WHERE userID = $userID";
@@ -240,7 +240,7 @@ namespace DawPastrator.Server.Services
         /// </summary>
         /// <param name="userID">用户ID</param>
         /// <returns>二进制的密码数据</returns>
-        public byte[] GetPasswordsData(in int userID)
+        public byte[] GetPasswordsData(int userID)
         {
             return GetBlobData(userID, "passwordsData");
         }
@@ -250,7 +250,7 @@ namespace DawPastrator.Server.Services
         /// </summary>
         /// <param name="userID">用户ID</param>
         /// <returns>被序列化的二进制数据</returns>
-        public byte[] GetDevicesAndPublicKeysInfo(in int userID)
+        public byte[] GetDevicesAndPublicKeysInfo(int userID)
         {
             return GetBlobData(userID, "devicesAndPublicKeysInfo");
         }
@@ -262,7 +262,7 @@ namespace DawPastrator.Server.Services
         /// <param name="fieldName">字段名</param>
         /// <param name="fieldValue">字段值</param>
         /// <returns>成功返回true否则false</returns>
-        private bool UpdateStringfield(in int userID, in string fieldName, in string fieldValue)
+        private bool UpdateStringfield(int userID, string fieldName, string fieldValue)
         {
             // 这里可以加上判断，判断用户ID是否存在、是否是唯一的。
 
@@ -274,12 +274,12 @@ namespace DawPastrator.Server.Services
             return command.ExecuteNonQuery() == 1;
         }
 
-        public bool UpdateMasterPassword(in int userID, in string masterPassword)
+        public bool UpdateMasterPassword(int userID, string masterPassword)
         {
             return UpdateStringfield(userID, "masterPassword", masterPassword);
         }
 
-        private bool UpdateBytesfield(in int userID, in string fieldName, in byte[] fieldValue)
+        private bool UpdateBytesfield(int userID, string fieldName, byte[] fieldValue)
         {
             // 这里可以加上判断，判断用户ID是否存在、是否是唯一的。
 
@@ -291,12 +291,12 @@ namespace DawPastrator.Server.Services
             return command.ExecuteNonQuery() == 1;
         }
 
-        public bool UpdatePasswordsData(in int userID, in byte[] passwordsData)
+        public bool UpdatePasswordsData(int userID, byte[] passwordsData)
         {
             return UpdateBytesfield(userID, "passwordsData", passwordsData);
         }
 
-        public bool UpdateDevicesAndPublicKeysInfo(in int userID, in byte[] devicesAndPublicKeysInfo)
+        public bool UpdateDevicesAndPublicKeysInfo(int userID, byte[] devicesAndPublicKeysInfo)
         {
             return UpdateBytesfield(userID, "devicesAndPublicKeysInfo", devicesAndPublicKeysInfo);
         }
@@ -306,7 +306,7 @@ namespace DawPastrator.Server.Services
         /// </summary>
         /// <param name="userID"></param>
         /// <returns></returns>
-        public bool DeleteAccount(in int userID)
+        public bool DeleteAccount(int userID)
         {
             // 这里可以加判断，判断用户ID是否是存在且唯一的
 
