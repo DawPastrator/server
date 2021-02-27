@@ -36,7 +36,8 @@ namespace DawPastrator.Server
             });
 
             services.AddSingleton<IDawAuthenticationService>(new DefaultDawAuthenticationService())
-                    .AddSingleton<IDataStorageService>(new DefaultDataStorageService());
+                    .AddSingleton<IDataStorageService>(new DefaultDataStorageService())
+                    .AddSingleton<IDatabaseServices>(new SqliteDatabaseServices());
 
             services.AddAuthentication(StringConstant.Cookies) // cookie 身份验证
                     .AddCookie(StringConstant.Cookies);

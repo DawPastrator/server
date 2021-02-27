@@ -23,7 +23,7 @@ namespace DawPastrator.Server.Services
     /// <summary>
     /// 实现数据库的CRUD
     /// </summary>
-    public interface IDatabaseServices
+    public interface IDatabaseServices : IDisposable
     {
         DatabaseError CreateTables();
 
@@ -31,34 +31,35 @@ namespace DawPastrator.Server.Services
 
         int GetUserID(string userName);
 
-        string GetMasterPassword(in int userID);
+        string GetMasterPassword(int userID);
 
-        byte[] GetPasswordsData(in int userID);
+        byte[] GetPasswordsData(int userID);
 
-        byte[] GetDevicesAndPublicKeysInfo(in int userID);
+        byte[] GetDevicesAndPublicKeysInfo(int userID);
 
-        DatabaseError UpdateMasterPassword(in int userID, string masterPassword);
+        DatabaseError UpdateMasterPassword(int userID, string masterPassword);
 
-        DatabaseError UpdatePasswordsData(in int userID, in byte[] passwordsData);
+        DatabaseError UpdatePasswordsData(int userID, byte[] passwordsData);
 
-        DatabaseError UpdateDevicesAndPublicKeysInfo(in int userID, in byte[] devicesAndPublicKeysInfo);
+        DatabaseError UpdateDevicesAndPublicKeysInfo(int userID, byte[] devicesAndPublicKeysInfo);
 
-        DatabaseError DeleteAccount(in int userID);
+        DatabaseError DeleteAccount(int userID);
     }
 
-    class ISqliteDatabaseServices : IDatabaseServices
+    public class SqliteDatabaseServices : IDatabaseServices
     {
         private readonly SqliteConnection connection_;
 
-        public ISqliteDatabaseServices()
+        public SqliteDatabaseServices()
         {
             connection_ = new SqliteConnection("Data Source=data.db");
             connection_.Open();
         }
 
-        ~ISqliteDatabaseServices()
+        public void Dispose()
         {
             connection_.Close();
+            GC.SuppressFinalize(this);
         }
 
         private bool TableHasBeenCreated(string tableName)
@@ -173,7 +174,7 @@ namespace DawPastrator.Server.Services
         /// </summary>
         /// <param name="userID">用户ID</param>
         /// <returns>主密码</returns>
-        public string GetMasterPassword(in int userID)
+        public string GetMasterPassword(int userID)
         {
             using var command = connection_.CreateCommand();
             command.CommandText = "SELECT masterPassword FROM user_data WHERE userID = $userID";
@@ -193,7 +194,7 @@ namespace DawPastrator.Server.Services
         /// <param name="userID">用户ID</param>
         /// <param name="requiredField">要获取的字段名</param>
         /// <returns>二进制数据</returns>
-        private byte[] GetBlobData(in int userID, string requiredField)
+        private byte[] GetBlobData(int userID, string requiredField)
         {
             using var command = connection_.CreateCommand();
             command.CommandText = "SELECT " + requiredField + " FROM user_data WHERE userID = $userID";
@@ -225,7 +226,7 @@ namespace DawPastrator.Server.Services
         /// </summary>
         /// <param name="userID">用户ID</param>
         /// <returns>二进制的密码数据</returns>
-        public byte[] GetPasswordsData(in int userID)
+        public byte[] GetPasswordsData(int userID)
         {
             return GetBlobData(userID, "passwordsData");
         }
@@ -235,7 +236,7 @@ namespace DawPastrator.Server.Services
         /// </summary>
         /// <param name="userID">用户ID</param>
         /// <returns>关于设备信息的二进制数据</returns>
-        public byte[] GetDevicesAndPublicKeysInfo(in int userID)
+        public byte[] GetDevicesAndPublicKeysInfo(int userID)
         {
             return GetBlobData(userID, "devicesAndPublicKeysInfo");
         }
@@ -246,7 +247,7 @@ namespace DawPastrator.Server.Services
         /// <param name="userID"></param>
         /// <param name="fieldName">字段名</param>
         /// <param name="fieldValue">字段值</param>
-        private DatabaseError UpdateStringfield(in int userID, string fieldName, string fieldValue)
+        private DatabaseError UpdateStringfield(int userID, string fieldName, string fieldValue)
         {
             // 这里可以加上判断，判断用户ID是否存在、是否是唯一的。
 
@@ -262,12 +263,12 @@ namespace DawPastrator.Server.Services
             return DatabaseError.SUCCESS;
         }
 
-        public DatabaseError UpdateMasterPassword(in int userID, string masterPassword)
+        public DatabaseError UpdateMasterPassword(int userID, string masterPassword)
         {
             return UpdateStringfield(userID, "masterPassword", masterPassword);
         }
 
-        private DatabaseError UpdateBytesfield(in int userID, string fieldName, in byte[] fieldValue)
+        private DatabaseError UpdateBytesfield(int userID, string fieldName, byte[] fieldValue)
         {
             using var command = connection_.CreateCommand();
             command.CommandText = "UPDATE user_data SET " + fieldName + " = $fieldValue WHERE userID = $userID";
@@ -282,12 +283,12 @@ namespace DawPastrator.Server.Services
             return DatabaseError.SUCCESS;
         }
 
-        public DatabaseError UpdatePasswordsData(in int userID, in byte[] passwordsData)
+        public DatabaseError UpdatePasswordsData(int userID, byte[] passwordsData)
         {
             return UpdateBytesfield(userID, "passwordsData", passwordsData);
         }
 
-        public DatabaseError UpdateDevicesAndPublicKeysInfo(in int userID, in byte[] devicesAndPublicKeysInfo)
+        public DatabaseError UpdateDevicesAndPublicKeysInfo(int userID, byte[] devicesAndPublicKeysInfo)
         {
             return UpdateBytesfield(userID, "devicesAndPublicKeysInfo", devicesAndPublicKeysInfo);
         }
@@ -297,7 +298,7 @@ namespace DawPastrator.Server.Services
         /// </summary>
         /// <param name="userID"></param>
         /// <returns></returns>
-        public DatabaseError DeleteAccount(in int userID)
+        public DatabaseError DeleteAccount(int userID)
         {
             // 这里可以加判断，判断用户ID是否是存在且唯一的
 
