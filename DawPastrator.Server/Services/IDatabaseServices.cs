@@ -8,18 +8,28 @@ using System.Diagnostics;
 
 namespace DawPastrator.Server.Services
 {
+    public enum DatabaseError
+    {
+        SUCCESS,
+        ERROR_USERID_NOT_EXISTS,
+        ERROR_USERNAME_NOT_EXISTS,
+        ERROR_USERNAME_HAS_ALREADY_EXISTS,
+        ERROR_USERNAME_IS_NULL_OR_WHITESPACE,
+        ERROR_MASTERPASSWORD_IS_NULL_OR_WHITESPACE,
+        ERROR_FAIL_TO_CREATE_TABLE,
+        ERROR_FAIL_TO_INSERT_ROW
+    }
+
     /// <summary>
     /// 实现数据库的CRUD
     /// </summary>
     public interface IDatabaseServices
     {
-        // TODO 返回状态码而不是bool
+        DatabaseError CreateTables();
 
-        bool CreateTables();
+        DatabaseError CreateAccount(string userName, string masterPassword);
 
-        bool CreateAccount(in string userName, in string masterPassword);
-
-        int GetUserID(in string userName);
+        int GetUserID(string userName);
 
         string GetMasterPassword(in int userID);
 
@@ -27,13 +37,13 @@ namespace DawPastrator.Server.Services
 
         byte[] GetDevicesAndPublicKeysInfo(in int userID);
 
-        bool UpdateMasterPassword(in int userID, in string masterPassword);
+        DatabaseError UpdateMasterPassword(in int userID, string masterPassword);
 
-        bool UpdatePasswordsData(in int userID, in byte[] passwordsData);
+        DatabaseError UpdatePasswordsData(in int userID, in byte[] passwordsData);
 
-        bool UpdateDevicesAndPublicKeysInfo(in int userID, in byte[] devicesAndPublicKeysInfo);
+        DatabaseError UpdateDevicesAndPublicKeysInfo(in int userID, in byte[] devicesAndPublicKeysInfo);
 
-        bool DeleteAccount(in int userID);
+        DatabaseError DeleteAccount(in int userID);
     }
 
     class ISqliteDatabaseServices : IDatabaseServices
@@ -51,9 +61,9 @@ namespace DawPastrator.Server.Services
             connection_.Close();
         }
 
-        private bool TableHasBeenCreated(in string tableName)
+        private bool TableHasBeenCreated(string tableName)
         {
-            Console.WriteLine("Checking if the {0} table has been created.", tableName);
+            //Console.WriteLine("Checking if the {0} table has been created.", tableName);
 
             using SqliteCommand command = connection_.CreateCommand();
             command.CommandText = "SELECT name FROM sqlite_master WHERE name = $tableName";
@@ -61,38 +71,15 @@ namespace DawPastrator.Server.Services
 
             using SqliteDataReader reader = command.ExecuteReader();
 
-            if (reader.Read())
-            {
-                Console.WriteLine("The {0} table has been created.", tableName);
-                return true;
-            }
-            else
-            {
-                Console.WriteLine("The {0} table has not been created.", tableName);
-                return false;
-            }
+            return reader.Read();
         }
 
-        public bool CreateTables()
+        /// <summary>
+        /// 创建表格
+        /// </summary>
+        /// <returns>状态码</returns>
+        public DatabaseError CreateTables()
         {
-            bool hasAlreadyCreated = true;
-
-            // Deprecated:
-            //if (!TableHasBeenCreated("user_info"))
-            //{
-            //    using SqliteCommand command = connection_.CreateCommand();
-            //    command.CommandText =
-            //    @"
-            //    create table user_info (
-            //        userName varchar[40] primary key not null,
-            //        userID Integer AUTOINCREMENT
-            //    )
-            //    ";
-
-            //    command.ExecuteNonQuery();
-            //    hasAlreadyCreated = false;
-            //}
-
             if (!TableHasBeenCreated("user_data"))
             {
                 using SqliteCommand command = connection_.CreateCommand();
@@ -107,19 +94,18 @@ namespace DawPastrator.Server.Services
                     devicesAndPublicKeysInfo BLOB
                 )
                 ";
-                command.ExecuteNonQuery();
 
                 // 前缀索引
                 command.CommandText = "CREATE INDEX userNameIndex ON user_data (substr(userName, 0, 4));";
                 command.ExecuteNonQuery();
 
-                hasAlreadyCreated = false;
+                if (TableHasBeenCreated("user_data"))
+                    return DatabaseError.ERROR_FAIL_TO_CREATE_TABLE;
             }
-
-            return hasAlreadyCreated || TableHasBeenCreated("user_data");
+            return DatabaseError.SUCCESS;
         }
 
-        private bool UserNameHasAlreadyExists(in string userName)
+        private bool UserNameHasAlreadyExists(string userName)
         {
             using var command = connection_.CreateCommand();
 
@@ -130,17 +116,24 @@ namespace DawPastrator.Server.Services
             return reader.Read();
         }
 
-        public bool CreateAccount(in string userName, in string masterPassword)
+        /// <summary>
+        /// 创建账户
+        /// </summary>
+        /// <param name="userName">用户名</param>
+        /// <param name="masterPassword">主密码</param>
+        /// <returns>状态码</returns>
+        public DatabaseError CreateAccount(string userName, string masterPassword)
         {
             using var command = connection_.CreateCommand();
 
-            // ！！在调用该函数之前应该做充分的检查，确保userName不和数据库中已有用户名重复
+            if (string.IsNullOrWhiteSpace(userName))
+                return DatabaseError.ERROR_USERNAME_IS_NULL_OR_WHITESPACE;
 
-            if (userName == string.Empty || masterPassword == string.Empty)
-                throw new ArgumentException("用户名或密码为空！");
+            if (string.IsNullOrWhiteSpace(masterPassword))
+                return DatabaseError.ERROR_MASTERPASSWORD_IS_NULL_OR_WHITESPACE;
 
             if (UserNameHasAlreadyExists(userName))
-                throw new ArgumentException("用户名已存在！");
+                return DatabaseError.ERROR_USERNAME_NOT_EXISTS;
 
             // user_data
             command.CommandText =
@@ -149,17 +142,19 @@ namespace DawPastrator.Server.Services
 
             command.Parameters.AddWithValue("$userName", userName);
             command.Parameters.AddWithValue("$masterPassword", masterPassword);
-            command.ExecuteNonQuery();
 
-            return true;
+            if (command.ExecuteNonQuery() != 1)
+                return DatabaseError.ERROR_FAIL_TO_INSERT_ROW;
+
+            return DatabaseError.SUCCESS;
         }
 
         /// <summary>
         /// 获取用户ID
         /// </summary>
         /// <param name="userName">用户名</param>
-        /// <returns>用户ID，或者-1表示失败</returns>
-        public int GetUserID(in string userName)
+        /// <returns>用户ID</returns>
+        public int GetUserID(string userName)
         {
             using var command = connection_.CreateCommand();
             command.CommandText = "SELECT userID FROM user_data WHERE userName = $userName";
@@ -168,20 +163,16 @@ namespace DawPastrator.Server.Services
             using var reader = command.ExecuteReader();
 
             if (reader.Read())
-            {
                 return reader.GetInt32(0);
-            }
             else
-            {
-                return -1;
-            }
+                throw new Exception("用户名不存在");
         }
 
         /// <summary>
         /// 获取主密码
         /// </summary>
         /// <param name="userID">用户ID</param>
-        /// <returns>主密码，或者空字符串表示失败</returns>
+        /// <returns>主密码</returns>
         public string GetMasterPassword(in int userID)
         {
             using var command = connection_.CreateCommand();
@@ -191,32 +182,28 @@ namespace DawPastrator.Server.Services
             using var reader = command.ExecuteReader();
 
             if (reader.Read())
-            {
                 return reader.GetString(0);
-            }
             else
-            {
-                return string.Empty;
-            }
+                throw new Exception("用户ID不存在");
         }
 
         /// <summary>
         /// 获取二进制数据
         /// </summary>
         /// <param name="userID">用户ID</param>
-        /// <param name="requiredfield">要求获得的字段名</param>
+        /// <param name="requiredField">要获取的字段名</param>
         /// <returns>二进制数据</returns>
-        private byte[] GetBlobData(in int userID, in string requiredfield)
+        private byte[] GetBlobData(in int userID, string requiredField)
         {
             using var command = connection_.CreateCommand();
-            command.CommandText = "SELECT " + requiredfield + " FROM user_data WHERE userID = $userID";
+            command.CommandText = "SELECT " + requiredField + " FROM user_data WHERE userID = $userID";
             command.Parameters.AddWithValue("$userID", userID);
             //command.Parameters.AddWithValue("$requiredfield", requiredfield);
 
             using var reader = command.ExecuteReader();
-            bool hasData = reader.Read();
 
-            Debug.Assert(hasData);
+            if (!reader.Read())
+                throw new Exception("用户ID不存在");
 
             // 预设的最大读取字节数，它的值应该来自config
             const int maxBytesOfPasswordsData = 10240;
@@ -247,7 +234,7 @@ namespace DawPastrator.Server.Services
         /// 获取设备信息与公私钥信息
         /// </summary>
         /// <param name="userID">用户ID</param>
-        /// <returns>被序列化的二进制数据</returns>
+        /// <returns>关于设备信息的二进制数据</returns>
         public byte[] GetDevicesAndPublicKeysInfo(in int userID)
         {
             return GetBlobData(userID, "devicesAndPublicKeysInfo");
@@ -259,8 +246,7 @@ namespace DawPastrator.Server.Services
         /// <param name="userID"></param>
         /// <param name="fieldName">字段名</param>
         /// <param name="fieldValue">字段值</param>
-        /// <returns>成功返回true否则false</returns>
-        private bool UpdateStringfield(in int userID, in string fieldName, in string fieldValue)
+        private DatabaseError UpdateStringfield(in int userID, string fieldName, string fieldValue)
         {
             // 这里可以加上判断，判断用户ID是否存在、是否是唯一的。
 
@@ -269,32 +255,39 @@ namespace DawPastrator.Server.Services
             //command.Parameters.AddWithValue("$fieldName", fieldName);
             command.Parameters.AddWithValue("$fieldValue", fieldValue);
             command.Parameters.AddWithValue("$userID", userID);
-            return command.ExecuteNonQuery() == 1;
+
+            if (command.ExecuteNonQuery() != 1)
+                return DatabaseError.ERROR_USERID_NOT_EXISTS;
+
+            return DatabaseError.SUCCESS;
         }
 
-        public bool UpdateMasterPassword(in int userID, in string masterPassword)
+        public DatabaseError UpdateMasterPassword(in int userID, string masterPassword)
         {
             return UpdateStringfield(userID, "masterPassword", masterPassword);
         }
 
-        private bool UpdateBytesfield(in int userID, in string fieldName, in byte[] fieldValue)
+        private DatabaseError UpdateBytesfield(in int userID, string fieldName, in byte[] fieldValue)
         {
-            // 这里可以加上判断，判断用户ID是否存在、是否是唯一的。
-
             using var command = connection_.CreateCommand();
             command.CommandText = "UPDATE user_data SET " + fieldName + " = $fieldValue WHERE userID = $userID";
+            //command.CommandText = "UPDATE user_data SET " + fieldName + " = $fieldValue WHERE userID = $userID LIMIT 1";
             //command.Parameters.AddWithValue("$fieldName", fieldName);
             command.Parameters.AddWithValue("$fieldValue", fieldValue);
             command.Parameters.AddWithValue("$userID", userID);
-            return command.ExecuteNonQuery() == 1;
+
+            if (command.ExecuteNonQuery() != 1)
+                return DatabaseError.ERROR_USERID_NOT_EXISTS;
+
+            return DatabaseError.SUCCESS;
         }
 
-        public bool UpdatePasswordsData(in int userID, in byte[] passwordsData)
+        public DatabaseError UpdatePasswordsData(in int userID, in byte[] passwordsData)
         {
             return UpdateBytesfield(userID, "passwordsData", passwordsData);
         }
 
-        public bool UpdateDevicesAndPublicKeysInfo(in int userID, in byte[] devicesAndPublicKeysInfo)
+        public DatabaseError UpdateDevicesAndPublicKeysInfo(in int userID, in byte[] devicesAndPublicKeysInfo)
         {
             return UpdateBytesfield(userID, "devicesAndPublicKeysInfo", devicesAndPublicKeysInfo);
         }
@@ -304,14 +297,24 @@ namespace DawPastrator.Server.Services
         /// </summary>
         /// <param name="userID"></param>
         /// <returns></returns>
-        public bool DeleteAccount(in int userID)
+        public DatabaseError DeleteAccount(in int userID)
         {
             // 这里可以加判断，判断用户ID是否是存在且唯一的
 
             using var command = connection_.CreateCommand();
             command.CommandText = "DELETE FROM user_data WHERE userID = $userID";
+            //command.CommandText = "DELETE FROM user_data WHERE userID = $userID LIMIT 1";
             command.Parameters.AddWithValue("$userID", userID);
-            return command.ExecuteNonQuery() == 1;
+
+            int result = command.ExecuteNonQuery();
+
+            if (result == 0)
+                return DatabaseError.ERROR_USERID_NOT_EXISTS;
+
+            // 大于1说明存在重复的ID
+            Debug.Assert(result == 1);
+
+            return DatabaseError.SUCCESS;
         }
     }
 }
