@@ -11,7 +11,7 @@ namespace DawPastrator.Server.Services
     /// <summary>
     /// 实现数据库的CRUD
     /// </summary>
-    public interface IDatabaseServices
+    public interface IDatabaseServices : IDisposable
     {
         // TODO 返回状态码而不是bool
 
@@ -34,9 +34,10 @@ namespace DawPastrator.Server.Services
         bool UpdateDevicesAndPublicKeysInfo(in int userID, in byte[] devicesAndPublicKeysInfo);
 
         bool DeleteAccount(in int userID);
+
     }
 
-    public class SqliteDatabaseServices : IDatabaseServices, IDisposable
+    public class SqliteDatabaseServices : IDatabaseServices
     {
         private readonly SqliteConnection connection_;
 
@@ -46,11 +47,10 @@ namespace DawPastrator.Server.Services
             connection_.Open();
         }
 
-
         public void Dispose()
         {
-            GC.SuppressFinalize(this);
             connection_.Close();
+            GC.SuppressFinalize(this);
         }
 
         private bool TableHasBeenCreated(in string tableName)
