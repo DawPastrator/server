@@ -36,18 +36,20 @@ namespace DawPastrator.Server.Services
         bool DeleteAccount(in int userID);
     }
 
-    class ISqliteDatabaseServices : IDatabaseServices
+    public class SqliteDatabaseServices : IDatabaseServices, IDisposable
     {
         private readonly SqliteConnection connection_;
 
-        public ISqliteDatabaseServices()
+        public SqliteDatabaseServices()
         {
             connection_ = new SqliteConnection("Data Source=data.db");
             connection_.Open();
         }
 
-        ~ISqliteDatabaseServices()
+
+        public void Dispose()
         {
+            GC.SuppressFinalize(this);
             connection_.Close();
         }
 
