@@ -4,6 +4,7 @@ using DawPastrator.Server.Services;
 using System.Diagnostics;
 using Xunit;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace DawPastrator.Server.Test
 {
@@ -18,7 +19,7 @@ namespace DawPastrator.Server.Test
         }
 
         [Fact]
-        public void TestDatabsae()
+        public async Task TestDatabsae()
         {
             if (System.IO.File.Exists("data.db"))
             {
@@ -37,33 +38,36 @@ namespace DawPastrator.Server.Test
 
             var dbHelper = new SqliteDatabaseServices();
 
-            string userName = "cjw";
-            string masterPassword = "12adbwjkdwahljdaw31==";
+            var userName = "cjw";
+            var masterPassword = "12adbwjkdwahljdaw31==";
 
-            Debug.Assert(dbHelper.CreateAccountAsync(userName, masterPassword) == DatabaseError.SUCCESS);
+            Debug.Assert(await dbHelper.CreateAccountAsync(userName, masterPassword) == DatabaseError.SUCCESS);
 
-            int userID = dbHelper.GetUserIDAsync(userName);
+            var userID = await dbHelper.GetUserIDAsync(userName);
 
-            byte[] passwordsData = new byte[10];
+            var passwordsData = new byte[10];
             Random rnd = new Random();
             rnd.NextBytes(passwordsData);
 
-            var devicesAndPublicKeysInfo = new List<Tuple<string, string>>();
-            devicesAndPublicKeysInfo.Add(new Tuple<string, string>("device1", "public key1"));
-            devicesAndPublicKeysInfo.Add(new Tuple<string, string>("device2", "public key2"));
+            var devicesAndPublicKeysInfo = new List<(string, string)>()
+            {
+                ("device1", "public key1"),
+                ("device2", "public key2")
+            };
 
-            Debug.Assert(dbHelper.UpdatePasswordsDataAsync(userID, passwordsData) == DatabaseError.SUCCESS);
-            Debug.Assert(dbHelper.UpdateDevicesAndPublicKeysInfo(userID, devicesAndPublicKeysInfo) == DatabaseError.SUCCESS);
+            Debug.Assert(await dbHelper.UpdatePasswordsDataAsync(userID, passwordsData) == DatabaseError.SUCCESS);
+            Debug.Assert(await dbHelper.UpdateDevicesAndPublicKeysInfoAsync(userID, devicesAndPublicKeysInfo) == DatabaseError.SUCCESS);
 
-            Debug.Assert(dbHelper.VerifyMasterPasswordAsync(userName, masterPassword));
+            Debug.Assert(await dbHelper.VerifyMasterPasswordAsync(userName, masterPassword));
 
-            string newPassword = "new password";
-            Debug.Assert(dbHelper.UpdateMasterPassword(userID, newPassword) == DatabaseError.SUCCESS);
+            var newPassword = "new password";
+            Debug.Assert(await dbHelper.UpdateMasterPasswordAsync(userID, newPassword) == DatabaseError.SUCCESS);
 
-            var info = dbHelper.GetDevicesAndPublicKeysInfoAsync(userID);
+
+            var info = await dbHelper.GetDevicesAndPublicKeysInfoAsync(userID);
             Debug.Assert(info.SequenceEqual(devicesAndPublicKeysInfo));
 
-            Debug.Assert(dbHelper.DeleteAccountAsync(userID) == DatabaseError.SUCCESS);
+            Debug.Assert(await dbHelper.DeleteAccountAsync(userID) == DatabaseError.SUCCESS);
         }
     }
 }

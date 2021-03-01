@@ -301,7 +301,7 @@ namespace DawPastrator.Server.Services
             return DatabaseError.SUCCESS;
         }
 
-        public async Task<DatabaseError> UpdateMasterPassword(int userID, string masterPassword)
+        public async Task<DatabaseError> UpdateMasterPasswordAsync(int userID, string masterPassword)
         {
             var userName = await GetUserName(userID);
             // 以userID的值作为pbe加密的盐进行加密
