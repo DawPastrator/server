@@ -1,0 +1,12 @@
+﻿syntax = "proto3";
+
+option csharp_namespace = "DawPastrator.Services.DevicesAndPublicKeysInfo";
+
+message DeviceAndPublicKey {
+	string deviceID = 1;
+	string publicKey = 2;
+}
+
+message DevicesAndPublicKeys {
+	repeated DeviceAndPublicKey deviceAndPublicKey = 1;
+}

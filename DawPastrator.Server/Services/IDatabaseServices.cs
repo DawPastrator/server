@@ -5,6 +5,9 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using System.Diagnostics;
+using Google.Protobuf;
+using DawPastrator.Core;
+using DawPastrator.Services.DevicesAndPublicKeysInfo;
 
 namespace DawPastrator.Server.Services
 {
@@ -25,23 +28,18 @@ namespace DawPastrator.Server.Services
     /// </summary>
     public interface IDatabaseServices : IDisposable
     {
-        DatabaseError CreateTables();
 
         DatabaseError CreateAccount(string userName, string masterPassword);
 
         int GetUserID(string userName);
 
-        string GetMasterPassword(int userID);
+        List<Tuple<string, string>> GetDevicesAndPublicKeysInfo(int userID);
 
-        byte[] GetPasswordsData(int userID);
-
-        byte[] GetDevicesAndPublicKeysInfo(int userID);
-
-        DatabaseError UpdateMasterPassword(int userID, string masterPassword);
+        bool VerifyMasterPassword(string userName, string masterPassword);
 
         DatabaseError UpdatePasswordsData(int userID, byte[] passwordsData);
 
-        DatabaseError UpdateDevicesAndPublicKeysInfo(int userID, byte[] devicesAndPublicKeysInfo);
+        DatabaseError UpdateDevicesAndPublicKeysInfo(int userID, List<Tuple<string, string>> devicesAndPublicKeysInfo);
 
         DatabaseError DeleteAccount(int userID);
     }
@@ -54,6 +52,9 @@ namespace DawPastrator.Server.Services
         {
             connection_ = new SqliteConnection("Data Source=data.db");
             connection_.Open();
+
+            if (CreateTable() != DatabaseError.SUCCESS)
+                throw new Exception("数据表创建失败");
         }
 
         public void Dispose()
@@ -79,7 +80,7 @@ namespace DawPastrator.Server.Services
         /// 创建表格
         /// </summary>
         /// <returns>状态码</returns>
-        public DatabaseError CreateTables()
+        private DatabaseError CreateTable()
         {
             if (!TableHasBeenCreated("user_data"))
             {
@@ -95,12 +96,13 @@ namespace DawPastrator.Server.Services
                     devicesAndPublicKeysInfo BLOB
                 )
                 ";
+                command.ExecuteNonQuery();
 
                 // 前缀索引
                 command.CommandText = "CREATE INDEX userNameIndex ON user_data (substr(userName, 0, 4));";
                 command.ExecuteNonQuery();
 
-                if (TableHasBeenCreated("user_data"))
+                if (!TableHasBeenCreated("user_data"))
                     return DatabaseError.ERROR_FAIL_TO_CREATE_TABLE;
             }
             return DatabaseError.SUCCESS;
@@ -142,7 +144,7 @@ namespace DawPastrator.Server.Services
                     VALUES(null, $userName, $masterPassword, null, null)";
 
             command.Parameters.AddWithValue("$userName", userName);
-            command.Parameters.AddWithValue("$masterPassword", masterPassword);
+            command.Parameters.AddWithValue("$masterPassword", masterPassword.PasswordProcess(userName));
 
             if (command.ExecuteNonQuery() != 1)
                 return DatabaseError.ERROR_FAIL_TO_INSERT_ROW;
@@ -169,12 +171,26 @@ namespace DawPastrator.Server.Services
                 throw new Exception("用户名不存在");
         }
 
+        private string GetUserName(int userID)
+        {
+            using var command = connection_.CreateCommand();
+            command.CommandText = "SELECT userName FROM user_data WHERE userID = $userID";
+            command.Parameters.AddWithValue("$userID", userID);
+
+            using var reader = command.ExecuteReader();
+
+            if (reader.Read())
+                return reader.GetString(0);
+            else
+                throw new Exception("用户名不存在");
+        }
+
         /// <summary>
         /// 获取主密码
         /// </summary>
         /// <param name="userID">用户ID</param>
         /// <returns>主密码</returns>
-        public string GetMasterPassword(int userID)
+        private string GetMasterPassword(int userID)
         {
             using var command = connection_.CreateCommand();
             command.CommandText = "SELECT masterPassword FROM user_data WHERE userID = $userID";
@@ -186,6 +202,14 @@ namespace DawPastrator.Server.Services
                 return reader.GetString(0);
             else
                 throw new Exception("用户ID不存在");
+        }
+
+        public bool VerifyMasterPassword(string userName, string masterPassword)
+        {
+            int userID = GetUserID(userName);
+            string masterPasswordFromDatabase = GetMasterPassword(userID);
+            string processedMasterPassword = masterPassword.PasswordProcess(userName);
+            return string.Equals(masterPasswordFromDatabase, processedMasterPassword);
         }
 
         /// <summary>
@@ -226,7 +250,7 @@ namespace DawPastrator.Server.Services
         /// </summary>
         /// <param name="userID">用户ID</param>
         /// <returns>二进制的密码数据</returns>
-        public byte[] GetPasswordsData(int userID)
+        private byte[] GetPasswordsData(int userID)
         {
             return GetBlobData(userID, "passwordsData");
         }
@@ -236,9 +260,19 @@ namespace DawPastrator.Server.Services
         /// </summary>
         /// <param name="userID">用户ID</param>
         /// <returns>关于设备信息的二进制数据</returns>
-        public byte[] GetDevicesAndPublicKeysInfo(int userID)
+        public List<Tuple<string, string>> GetDevicesAndPublicKeysInfo(int userID)
         {
-            return GetBlobData(userID, "devicesAndPublicKeysInfo");
+            byte[] bytesData = GetBlobData(userID, "devicesAndPublicKeysInfo");
+
+            var output = new List<Tuple<string, string>>();
+
+            var devicesAndPublicKeys = DevicesAndPublicKeys.Parser.ParseFrom(bytesData);
+            
+            foreach(var deviceAndPublicKey in devicesAndPublicKeys.DeviceAndPublicKey)
+            {
+                output.Add(new Tuple<string, string>(deviceAndPublicKey.DeviceID, deviceAndPublicKey.PublicKey));
+            }
+            return output;
         }
 
         /// <summary>
@@ -265,7 +299,10 @@ namespace DawPastrator.Server.Services
 
         public DatabaseError UpdateMasterPassword(int userID, string masterPassword)
         {
-            return UpdateStringfield(userID, "masterPassword", masterPassword);
+
+
+            // 以userID的值作为pbe加密的盐进行加密
+            return UpdateStringfield(userID, "masterPassword", masterPassword.PasswordProcess(GetUserName(userID)));
         }
 
         private DatabaseError UpdateBytesfield(int userID, string fieldName, byte[] fieldValue)
@@ -288,9 +325,22 @@ namespace DawPastrator.Server.Services
             return UpdateBytesfield(userID, "passwordsData", passwordsData);
         }
 
-        public DatabaseError UpdateDevicesAndPublicKeysInfo(int userID, byte[] devicesAndPublicKeysInfo)
+        public DatabaseError UpdateDevicesAndPublicKeysInfo(int userID, List<Tuple<string, string>> deviceAndPublicKeyList)
         {
-            return UpdateBytesfield(userID, "devicesAndPublicKeysInfo", devicesAndPublicKeysInfo);
+            DevicesAndPublicKeys devicesAndPublicKeys = new DevicesAndPublicKeys();
+
+            foreach (Tuple<string, string>  deviceAndPublicKeyTuple in deviceAndPublicKeyList)
+            {
+                DeviceAndPublicKey deviceAndPublicKey = new DeviceAndPublicKey();
+                deviceAndPublicKey.DeviceID = deviceAndPublicKeyTuple.Item1;
+                deviceAndPublicKey.PublicKey = deviceAndPublicKeyTuple.Item2;
+                devicesAndPublicKeys.DeviceAndPublicKey.Add(deviceAndPublicKey);
+            }
+
+            using var ms = new System.IO.MemoryStream();
+            devicesAndPublicKeys.WriteTo(ms);
+
+            return UpdateBytesfield(userID, "devicesAndPublicKeysInfo", devicesAndPublicKeys.ToByteArray());
         }
 
         /// <summary>
@@ -308,7 +358,8 @@ namespace DawPastrator.Server.Services
             command.Parameters.AddWithValue("$userID", userID);
 
             int result = command.ExecuteNonQuery();
-
+            
+            // 删除失败
             if (result == 0)
                 return DatabaseError.ERROR_USERID_NOT_EXISTS;
 

@@ -5,8 +5,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Google.Protobuf" Version="3.15.3" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="5.0.3" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="5.6.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DawPastrator.Core\DawPastrator.Core.csproj" />
   </ItemGroup>
 
 </Project>
