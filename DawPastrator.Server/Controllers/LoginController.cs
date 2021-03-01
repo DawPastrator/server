@@ -37,12 +37,11 @@ namespace DawPastrator.Server.Controllers
         [HttpPost]
         public async Task Login([FromBody] UserLoginModel model)
         {
-
-            if (dawAuthenticationService.Verify(model, out var principal))
+            var principal = await dawAuthenticationService.VerifyAsync(model);
+            if (principal != null)
             {
                 await HttpContext.SignInAsync(StringConstant.Cookies, principal);
             }
-            
         }
 
         //// GET api/<LoginController>/5/6

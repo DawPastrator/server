@@ -29,19 +29,19 @@ namespace DawPastrator.Server.Services
     public interface IDatabaseServices : IDisposable
     {
 
-        DatabaseError CreateAccount(string userName, string masterPassword);
+        Task<DatabaseError> CreateAccountAsync(string userName, string masterPassword);
 
-        int GetUserID(string userName);
+        Task<int> GetUserIDAsync(string userName);
 
-        List<Tuple<string, string>> GetDevicesAndPublicKeysInfo(int userID);
+        Task<List<(string, string)>> GetDevicesAndPublicKeysInfoAsync(int userID);
 
-        bool VerifyMasterPassword(string userName, string masterPassword);
+        Task<bool> VerifyMasterPasswordAsync(string userName, string masterPassword);
 
-        DatabaseError UpdatePasswordsData(int userID, byte[] passwordsData);
+        Task<DatabaseError> UpdatePasswordsDataAsync(int userID, byte[] passwordsData);
 
-        DatabaseError UpdateDevicesAndPublicKeysInfo(int userID, List<Tuple<string, string>> devicesAndPublicKeysInfo);
+        Task<DatabaseError> UpdateDevicesAndPublicKeysInfoAsync(int userID, List<(string, string)> devicesAndPublicKeysInfo);
 
-        DatabaseError DeleteAccount(int userID);
+        Task<DatabaseError> DeleteAccountAsync(int userID);
     }
 
     public class SqliteDatabaseServices : IDatabaseServices
@@ -125,7 +125,7 @@ namespace DawPastrator.Server.Services
         /// <param name="userName">用户名</param>
         /// <param name="masterPassword">主密码</param>
         /// <returns>状态码</returns>
-        public DatabaseError CreateAccount(string userName, string masterPassword)
+        public async Task<DatabaseError> CreateAccountAsync(string userName, string masterPassword)
         {
             using var command = connection_.CreateCommand();
 
@@ -146,7 +146,7 @@ namespace DawPastrator.Server.Services
             command.Parameters.AddWithValue("$userName", userName);
             command.Parameters.AddWithValue("$masterPassword", masterPassword.PasswordProcess(userName));
 
-            if (command.ExecuteNonQuery() != 1)
+            if (await command.ExecuteNonQueryAsync() != 1)
                 return DatabaseError.ERROR_FAIL_TO_INSERT_ROW;
 
             return DatabaseError.SUCCESS;
@@ -157,13 +157,13 @@ namespace DawPastrator.Server.Services
         /// </summary>
         /// <param name="userName">用户名</param>
         /// <returns>用户ID</returns>
-        public int GetUserID(string userName)
+        public async Task<int> GetUserIDAsync(string userName)
         {
             using var command = connection_.CreateCommand();
             command.CommandText = "SELECT userID FROM user_data WHERE userName = $userName";
             command.Parameters.AddWithValue("$userName", userName);
 
-            using var reader = command.ExecuteReader();
+            using var reader = await command.ExecuteReaderAsync();
 
             if (reader.Read())
                 return reader.GetInt32(0);
@@ -171,13 +171,13 @@ namespace DawPastrator.Server.Services
                 throw new Exception("用户名不存在");
         }
 
-        private string GetUserName(int userID)
+        private async Task<string> GetUserName(int userID)
         {
             using var command = connection_.CreateCommand();
             command.CommandText = "SELECT userName FROM user_data WHERE userID = $userID";
             command.Parameters.AddWithValue("$userID", userID);
 
-            using var reader = command.ExecuteReader();
+            using var reader = await command.ExecuteReaderAsync();
 
             if (reader.Read())
                 return reader.GetString(0);
@@ -190,13 +190,13 @@ namespace DawPastrator.Server.Services
         /// </summary>
         /// <param name="userID">用户ID</param>
         /// <returns>主密码</returns>
-        private string GetMasterPassword(int userID)
+        private async Task<string> GetMasterPassword(int userID)
         {
             using var command = connection_.CreateCommand();
             command.CommandText = "SELECT masterPassword FROM user_data WHERE userID = $userID";
             command.Parameters.AddWithValue("$userID", userID);
 
-            using var reader = command.ExecuteReader();
+            using var reader = await command.ExecuteReaderAsync();
 
             if (reader.Read())
                 return reader.GetString(0);
@@ -204,12 +204,13 @@ namespace DawPastrator.Server.Services
                 throw new Exception("用户ID不存在");
         }
 
-        public bool VerifyMasterPassword(string userName, string masterPassword)
+        public async Task<bool> VerifyMasterPasswordAsync(string userName, string masterPassword)
         {
-            int userID = GetUserID(userName);
-            string masterPasswordFromDatabase = GetMasterPassword(userID);
-            string processedMasterPassword = masterPassword.PasswordProcess(userName);
-            return string.Equals(masterPasswordFromDatabase, processedMasterPassword);
+            var userID = await GetUserIDAsync(userName);
+            var masterPasswordFromDatabase = await GetMasterPassword(userID);
+            var processedMasterPassword = masterPassword.PasswordProcess(userName);
+
+            return masterPasswordFromDatabase == processedMasterPassword;
         }
 
         /// <summary>
@@ -218,14 +219,14 @@ namespace DawPastrator.Server.Services
         /// <param name="userID">用户ID</param>
         /// <param name="requiredField">要获取的字段名</param>
         /// <returns>二进制数据</returns>
-        private byte[] GetBlobData(int userID, string requiredField)
+        private async Task<byte[]> GetBlobData(int userID, string requiredField)
         {
             using var command = connection_.CreateCommand();
             command.CommandText = "SELECT " + requiredField + " FROM user_data WHERE userID = $userID";
             command.Parameters.AddWithValue("$userID", userID);
             //command.Parameters.AddWithValue("$requiredfield", requiredfield);
 
-            using var reader = command.ExecuteReader();
+            using var reader = await command.ExecuteReaderAsync();
 
             if (!reader.Read())
                 throw new Exception("用户ID不存在");
@@ -250,7 +251,7 @@ namespace DawPastrator.Server.Services
         /// </summary>
         /// <param name="userID">用户ID</param>
         /// <returns>二进制的密码数据</returns>
-        private byte[] GetPasswordsData(int userID)
+        private Task<byte[]> GetPasswordsData(int userID)
         {
             return GetBlobData(userID, "passwordsData");
         }
@@ -260,18 +261,19 @@ namespace DawPastrator.Server.Services
         /// </summary>
         /// <param name="userID">用户ID</param>
         /// <returns>关于设备信息的二进制数据</returns>
-        public List<Tuple<string, string>> GetDevicesAndPublicKeysInfo(int userID)
+        public async Task<List<(string, string)>> GetDevicesAndPublicKeysInfoAsync(int userID)
         {
-            byte[] bytesData = GetBlobData(userID, "devicesAndPublicKeysInfo");
+            var bytesData = await GetBlobData(userID, "devicesAndPublicKeysInfo");
 
-            var output = new List<Tuple<string, string>>();
+            var output = new List<(string, string)>();
 
             var devicesAndPublicKeys = DevicesAndPublicKeys.Parser.ParseFrom(bytesData);
             
             foreach(var deviceAndPublicKey in devicesAndPublicKeys.DeviceAndPublicKey)
             {
-                output.Add(new Tuple<string, string>(deviceAndPublicKey.DeviceID, deviceAndPublicKey.PublicKey));
+                output.Add((deviceAndPublicKey.DeviceID, deviceAndPublicKey.PublicKey));
             }
+
             return output;
         }
 
@@ -281,7 +283,7 @@ namespace DawPastrator.Server.Services
         /// <param name="userID"></param>
         /// <param name="fieldName">字段名</param>
         /// <param name="fieldValue">字段值</param>
-        private DatabaseError UpdateStringfield(int userID, string fieldName, string fieldValue)
+        private async Task<DatabaseError> UpdateStringfield(int userID, string fieldName, string fieldValue)
         {
             // 这里可以加上判断，判断用户ID是否存在、是否是唯一的。
 
@@ -291,21 +293,20 @@ namespace DawPastrator.Server.Services
             command.Parameters.AddWithValue("$fieldValue", fieldValue);
             command.Parameters.AddWithValue("$userID", userID);
 
-            if (command.ExecuteNonQuery() != 1)
+            if (await command.ExecuteNonQueryAsync() != 1)
                 return DatabaseError.ERROR_USERID_NOT_EXISTS;
 
             return DatabaseError.SUCCESS;
         }
 
-        public DatabaseError UpdateMasterPassword(int userID, string masterPassword)
+        public async Task<DatabaseError> UpdateMasterPassword(int userID, string masterPassword)
         {
-
-
+            var userName = await GetUserName(userID);
             // 以userID的值作为pbe加密的盐进行加密
-            return UpdateStringfield(userID, "masterPassword", masterPassword.PasswordProcess(GetUserName(userID)));
+            return await UpdateStringfield(userID, "masterPassword", masterPassword.PasswordProcess(userName));
         }
 
-        private DatabaseError UpdateBytesfield(int userID, string fieldName, byte[] fieldValue)
+        private async Task<DatabaseError> UpdateBytesfield(int userID, string fieldName, byte[] fieldValue)
         {
             using var command = connection_.CreateCommand();
             command.CommandText = "UPDATE user_data SET " + fieldName + " = $fieldValue WHERE userID = $userID";
@@ -314,26 +315,28 @@ namespace DawPastrator.Server.Services
             command.Parameters.AddWithValue("$fieldValue", fieldValue);
             command.Parameters.AddWithValue("$userID", userID);
 
-            if (command.ExecuteNonQuery() != 1)
+            if (await command.ExecuteNonQueryAsync() != 1)
                 return DatabaseError.ERROR_USERID_NOT_EXISTS;
-
-            return DatabaseError.SUCCESS;
+            else
+                return DatabaseError.SUCCESS;
         }
 
-        public DatabaseError UpdatePasswordsData(int userID, byte[] passwordsData)
+        public Task<DatabaseError> UpdatePasswordsDataAsync(int userID, byte[] passwordsData)
         {
             return UpdateBytesfield(userID, "passwordsData", passwordsData);
         }
 
-        public DatabaseError UpdateDevicesAndPublicKeysInfo(int userID, List<Tuple<string, string>> deviceAndPublicKeyList)
+        public Task<DatabaseError> UpdateDevicesAndPublicKeysInfoAsync(int userID, List<(string, string)> deviceAndPublicKeyList)
         {
-            DevicesAndPublicKeys devicesAndPublicKeys = new DevicesAndPublicKeys();
+            var devicesAndPublicKeys = new DevicesAndPublicKeys();
 
-            foreach (Tuple<string, string>  deviceAndPublicKeyTuple in deviceAndPublicKeyList)
+            foreach (var deviceAndPublicKeyTuple in deviceAndPublicKeyList)
             {
-                DeviceAndPublicKey deviceAndPublicKey = new DeviceAndPublicKey();
-                deviceAndPublicKey.DeviceID = deviceAndPublicKeyTuple.Item1;
-                deviceAndPublicKey.PublicKey = deviceAndPublicKeyTuple.Item2;
+                var deviceAndPublicKey = new DeviceAndPublicKey()
+                {
+                    DeviceID = deviceAndPublicKeyTuple.Item1,
+                    PublicKey = deviceAndPublicKeyTuple.Item2
+                };
                 devicesAndPublicKeys.DeviceAndPublicKey.Add(deviceAndPublicKey);
             }
 
@@ -348,7 +351,7 @@ namespace DawPastrator.Server.Services
         /// </summary>
         /// <param name="userID"></param>
         /// <returns></returns>
-        public DatabaseError DeleteAccount(int userID)
+        public async Task<DatabaseError> DeleteAccountAsync(int userID)
         {
             // 这里可以加判断，判断用户ID是否是存在且唯一的
 
@@ -357,7 +360,7 @@ namespace DawPastrator.Server.Services
             //command.CommandText = "DELETE FROM user_data WHERE userID = $userID LIMIT 1";
             command.Parameters.AddWithValue("$userID", userID);
 
-            int result = command.ExecuteNonQuery();
+            var result = await command.ExecuteNonQueryAsync();
             
             // 删除失败
             if (result == 0)

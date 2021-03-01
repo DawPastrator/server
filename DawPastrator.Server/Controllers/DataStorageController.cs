@@ -31,7 +31,7 @@ namespace DawPastrator.Server.Controllers
         {
             if (HttpContext.User.TryGetUserId(out var userId))
             {
-                return await dataStorageService.Get(userId);
+                return await dataStorageService.GetAsync(userId);
             }
             else
             {
@@ -45,7 +45,7 @@ namespace DawPastrator.Server.Controllers
         {
             if (HttpContext.User.TryGetUserId(out var userId))
             {
-                await dataStorageService.Store(userId, model);
+                await dataStorageService.StoreAsync(userId, model);
             }
         }
     }
