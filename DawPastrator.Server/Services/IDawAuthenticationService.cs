@@ -10,23 +10,39 @@ namespace DawPastrator.Server.Services
 {
     public interface IDawAuthenticationService
     {
-        public bool Verify(UserLoginModel model, out ClaimsPrincipal principal);
+        public Task<ClaimsPrincipal?> VerifyAsync(UserLoginModel model);
     }
 
     public class DefaultDawAuthenticationService : IDawAuthenticationService
     {
-        public bool Verify(UserLoginModel model, out ClaimsPrincipal principal)
+ 
+        private readonly IDatabaseServices databaseServices;
+
+        public DefaultDawAuthenticationService(IDatabaseServices databaseServices)
         {
-            var claims = new Claim[]
+            this.databaseServices = databaseServices;
+        }
+
+        public async Task<ClaimsPrincipal?> VerifyAsync(UserLoginModel model)
+        {
+            var userId = databaseServices.GetUserIDAsync(model.UserName);
+
+            if (await databaseServices.VerifyMasterPasswordAsync(model.UserName, model.Password))
             {
-                new (ClaimTypes.Name, model.UserName),
-                new (ClaimTypes.UserData, 0.ToString())
-            };
+                var claims = new Claim[]
+                {
+                    new (ClaimTypes.Name, model.UserName),
+                    new (ClaimTypes.UserData, userId.ToString())
+                };
 
-            var identity = new ClaimsIdentity(claims, StringConstant.Cookies);
-            principal = new ClaimsPrincipal(identity);
+                var identity = new ClaimsIdentity(claims, StringConstant.Cookies);
 
-            return true;
+                return new ClaimsPrincipal(identity);
+            }
+            else
+            {
+                return null;
+            }
         }
     }
 }
