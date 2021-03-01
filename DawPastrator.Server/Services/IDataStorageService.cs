@@ -23,20 +23,22 @@ namespace DawPastrator.Server.Services
             this.databaseServices = databaseServices;
         }
 
-        public Task<DataStorageModel?> GetAsync(int userId)
+        public async Task<DataStorageModel?> GetAsync(int userId)
         {
-            //var bytes = databaseServices.GetDevicesAndPublicKeysInfo(userID);
-            //var bs4Data = Convert.ToBase64String(bytes);
+            var bytes = await databaseServices.GetPasswordsData(userId);
+            var bs4Data = Convert.ToBase64String(bytes);
 
-            return Task.FromResult(new DataStorageModel
+            return new DataStorageModel
             {
-                //Bs4Data = bs4Data
-            });
+                Bs4Data = bs4Data
+            };
         }
 
-        public Task StoreAsync(int userId, DataStorageModel model)
+        public async Task StoreAsync(int userId, DataStorageModel model)
         {
-            return Task.CompletedTask;
+            var bytes = Convert.FromBase64String(model.Bs4Data);
+
+            await databaseServices.UpdatePasswordsDataAsync(userId, bytes);
         }
 
         

@@ -42,6 +42,8 @@ namespace DawPastrator.Server.Services
         Task<DatabaseError> UpdateDevicesAndPublicKeysInfoAsync(int userID, List<(string, string)> devicesAndPublicKeysInfo);
 
         Task<DatabaseError> DeleteAccountAsync(int userID);
+
+        Task<byte[]> GetPasswordsData(int userID);
     }
 
     public class SqliteDatabaseServices : IDatabaseServices
@@ -251,7 +253,7 @@ namespace DawPastrator.Server.Services
         /// </summary>
         /// <param name="userID">用户ID</param>
         /// <returns>二进制的密码数据</returns>
-        private Task<byte[]> GetPasswordsData(int userID)
+        public Task<byte[]> GetPasswordsData(int userID)
         {
             return GetBlobData(userID, "passwordsData");
         }
