@@ -9,30 +9,36 @@ namespace DawPastrator.Server.Services
 {
     public interface IDataStorageService
     {
-        public Task Store(int userId, DataStorageModel model);
-        public Task<DataStorageModel?> Get(int userId);
+        public Task StoreAsync(int userId, DataStorageModel model);
+        public Task<DataStorageModel?> GetAsync(int userId);
     }
 
     public class DefaultDataStorageService : IDataStorageService
     {
-        public Task<DataStorageModel?> Get(int userId)
+
+        private readonly IDatabaseServices databaseServices;
+
+        public DefaultDataStorageService(IDatabaseServices databaseServices)
         {
-            if (userId == 25565)
-            {
-                return Task.FromResult(default(DataStorageModel));
-            }
-            else
-            {
-                return Task.FromResult(new DataStorageModel
-                {
-                    Bs4Data = "abcdefg"
-                });
-            }
+            this.databaseServices = databaseServices;
         }
 
-        public Task Store(int userId, DataStorageModel model)
+        public async Task<DataStorageModel?> GetAsync(int userId)
         {
-            return Task.CompletedTask;
+            var bytes = await databaseServices.GetPasswordsData(userId);
+            var bs4Data = Convert.ToBase64String(bytes);
+
+            return new DataStorageModel
+            {
+                Bs4Data = bs4Data
+            };
+        }
+
+        public async Task StoreAsync(int userId, DataStorageModel model)
+        {
+            var bytes = Convert.FromBase64String(model.Bs4Data);
+
+            await databaseServices.UpdatePasswordsDataAsync(userId, bytes);
         }
 
         

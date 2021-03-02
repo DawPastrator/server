@@ -40,9 +40,9 @@ namespace DawPastrator.Server.Test
             string userName = "cjw";
             string masterPassword = "12adbwjkdwahljdaw31==";
 
-            Debug.Assert(dbHelper.CreateAccount(userName, masterPassword) == DatabaseError.SUCCESS);
+            Debug.Assert(dbHelper.CreateAccountAsync(userName, masterPassword) == DatabaseError.SUCCESS);
 
-            int userID = dbHelper.GetUserID(userName);
+            int userID = dbHelper.GetUserIDAsync(userName);
 
             byte[] passwordsData = new byte[10];
             Random rnd = new Random();
@@ -52,18 +52,18 @@ namespace DawPastrator.Server.Test
             devicesAndPublicKeysInfo.Add(new Tuple<string, string>("device1", "public key1"));
             devicesAndPublicKeysInfo.Add(new Tuple<string, string>("device2", "public key2"));
 
-            Debug.Assert(dbHelper.UpdatePasswordsData(userID, passwordsData) == DatabaseError.SUCCESS);
+            Debug.Assert(dbHelper.UpdatePasswordsDataAsync(userID, passwordsData) == DatabaseError.SUCCESS);
             Debug.Assert(dbHelper.UpdateDevicesAndPublicKeysInfo(userID, devicesAndPublicKeysInfo) == DatabaseError.SUCCESS);
 
-            Debug.Assert(dbHelper.VerifyMasterPassword(userName, masterPassword));
+            Debug.Assert(dbHelper.VerifyMasterPasswordAsync(userName, masterPassword));
 
             string newPassword = "new password";
             Debug.Assert(dbHelper.UpdateMasterPassword(userID, newPassword) == DatabaseError.SUCCESS);
 
-            var info = dbHelper.GetDevicesAndPublicKeysInfo(userID);
+            var info = dbHelper.GetDevicesAndPublicKeysInfoAsync(userID);
             Debug.Assert(info.SequenceEqual(devicesAndPublicKeysInfo));
 
-            Debug.Assert(dbHelper.DeleteAccount(userID) == DatabaseError.SUCCESS);
+            Debug.Assert(dbHelper.DeleteAccountAsync(userID) == DatabaseError.SUCCESS);
         }
     }
 }
