@@ -250,7 +250,7 @@ namespace DawPastrator.Server.Services
         /// </summary>
         /// <param name="userID">用户ID</param>
         /// <returns>二进制的密码数据</returns>
-        private byte[] GetPasswordsData(int userID)
+        public byte[] GetPasswordsData(int userID)
         {
             return GetBlobData(userID, "passwordsData");
         }
