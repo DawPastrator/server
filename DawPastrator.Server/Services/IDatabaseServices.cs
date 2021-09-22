@@ -8,8 +8,9 @@ using System.Diagnostics;
 using Google.Protobuf;
 using DawPastrator.Core;
 using DawPastrator.Services.DevicesAndPublicKeysInfo;
+using DawPastrator.Server.Models;
 
-namespace DawPastrator.Server.Services
+namespace DawPastrator.Server.Models
 {
     public enum DatabaseError
     {
@@ -26,7 +27,7 @@ namespace DawPastrator.Server.Services
     /// <summary>
     /// 实现数据库的CRUD
     /// </summary>
-    public interface IDatabaseServices : IDisposable
+    public interface IDatabaseServicesOld : IDisposable
     {
 
         Task<DatabaseError> CreateAccountAsync(string userName, string masterPassword);
@@ -46,69 +47,56 @@ namespace DawPastrator.Server.Services
         Task<byte[]> GetPasswordsData(int userID);
     }
 
-    public class SqliteDatabaseServices : IDatabaseServices
+    public class SqliteDatabaseServices : IDatabaseServicesOld
     {
-        private readonly SqliteConnection connection_;
+        private DatabaseContext db;
 
         public SqliteDatabaseServices()
         {
-            connection_ = new SqliteConnection("Data Source=data.db");
-            connection_.Open();
-
-            if (CreateTable() != DatabaseError.SUCCESS)
-                throw new Exception("数据表创建失败");
+            db = new();
         }
 
         public void Dispose()
         {
-            connection_.Close();
+            db.Dispose();
             GC.SuppressFinalize(this);
         }
 
-        private bool TableHasBeenCreated(string tableName)
-        {
-            //Console.WriteLine("Checking if the {0} table has been created.", tableName);
-
-            using SqliteCommand command = connection_.CreateCommand();
-            command.CommandText = "SELECT name FROM sqlite_master WHERE name = $tableName";
-            command.Parameters.AddWithValue("$tableName", tableName);
-
-            using SqliteDataReader reader = command.ExecuteReader();
-
-            return reader.Read();
-        }
+        //private bool TableHasBeenCreated(string tableName)
+        //{
+        //}
 
         /// <summary>
         /// 创建表格
         /// </summary>
         /// <returns>状态码</returns>
-        private DatabaseError CreateTable()
-        {
-            if (!TableHasBeenCreated("user_data"))
-            {
-                using SqliteCommand command = connection_.CreateCommand();
+        //private DatabaseError CreateTable()
+        //{
+        //    if (!TableHasBeenCreated("user_data"))
+        //    {
+        //        using SqliteCommand command = connection_.CreateCommand();
 
-                command.CommandText =
-                @"
-                CREATE TABLE user_data (
-                    userID INTEGER PRIMARY KEY AUTOINCREMENT,
-                    userName varchar[40] NOT NULL,
-                    masterPassword CHAR[44] NOT NULL,
-                    passwordsData BLOB,
-                    devicesAndPublicKeysInfo BLOB
-                )
-                ";
-                command.ExecuteNonQuery();
+        //        command.CommandText =
+        //        @"
+        //        CREATE TABLE user_data (
+        //            userID INTEGER PRIMARY KEY AUTOINCREMENT,
+        //            userName varchar[40] NOT NULL,
+        //            masterPassword CHAR[44] NOT NULL,
+        //            passwordsData BLOB,
+        //            devicesAndPublicKeysInfo BLOB
+        //        )
+        //        ";
+        //        command.ExecuteNonQuery();
 
-                // 前缀索引
-                command.CommandText = "CREATE INDEX userNameIndex ON user_data (substr(userName, 0, 4));";
-                command.ExecuteNonQuery();
+        //        // 前缀索引
+        //        command.CommandText = "CREATE INDEX userNameIndex ON user_data (substr(userName, 0, 4));";
+        //        command.ExecuteNonQuery();
 
-                if (!TableHasBeenCreated("user_data"))
-                    return DatabaseError.ERROR_FAIL_TO_CREATE_TABLE;
-            }
-            return DatabaseError.SUCCESS;
-        }
+        //        if (!TableHasBeenCreated("user_data"))
+        //            return DatabaseError.ERROR_FAIL_TO_CREATE_TABLE;
+        //    }
+        //    return DatabaseError.SUCCESS;
+        //}
 
         private bool UserNameHasAlreadyExists(string userName)
         {
@@ -146,7 +134,7 @@ namespace DawPastrator.Server.Services
                     VALUES(null, $userName, $masterPassword, null, null)";
 
             command.Parameters.AddWithValue("$userName", userName);
-            command.Parameters.AddWithValue("$masterPassword", masterPassword.PasswordProcess(userName));
+            command.Parameters.AddWithValue("$masterPassword", masterPassword.AddSaltAndEncrypt(userName));
 
             if (await command.ExecuteNonQueryAsync() != 1)
                 return DatabaseError.ERROR_FAIL_TO_INSERT_ROW;
@@ -210,7 +198,7 @@ namespace DawPastrator.Server.Services
         {
             var userID = await GetUserIDAsync(userName);
             var masterPasswordFromDatabase = await GetMasterPassword(userID);
-            var processedMasterPassword = masterPassword.PasswordProcess(userName);
+            var processedMasterPassword = masterPassword.AddSaltAndEncrypt(userName);
 
             return masterPasswordFromDatabase == processedMasterPassword;
         }
@@ -270,8 +258,8 @@ namespace DawPastrator.Server.Services
             var output = new List<(string, string)>();
 
             var devicesAndPublicKeys = DevicesAndPublicKeys.Parser.ParseFrom(bytesData);
-            
-            foreach(var deviceAndPublicKey in devicesAndPublicKeys.DeviceAndPublicKey)
+
+            foreach (var deviceAndPublicKey in devicesAndPublicKeys.DeviceAndPublicKey)
             {
                 output.Add((deviceAndPublicKey.DeviceID, deviceAndPublicKey.PublicKey));
             }
@@ -305,7 +293,7 @@ namespace DawPastrator.Server.Services
         {
             var userName = await GetUserName(userID);
             // 以userID的值作为pbe加密的盐进行加密
-            return await UpdateStringfield(userID, "masterPassword", masterPassword.PasswordProcess(userName));
+            return await UpdateStringfield(userID, "masterPassword", masterPassword.AddSaltAndEncrypt(userName));
         }
 
         private async Task<DatabaseError> UpdateBytesfield(int userID, string fieldName, byte[] fieldValue)
@@ -363,7 +351,7 @@ namespace DawPastrator.Server.Services
             command.Parameters.AddWithValue("$userID", userID);
 
             var result = await command.ExecuteNonQueryAsync();
-            
+
             // 删除失败
             if (result == 0)
                 return DatabaseError.ERROR_USERID_NOT_EXISTS;

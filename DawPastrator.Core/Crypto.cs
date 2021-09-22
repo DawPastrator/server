@@ -19,7 +19,7 @@ namespace DawPastrator.Core
         {
             algorithm_ = Aes.Create();
             algorithm_.KeySize = 256;
-            algorithm_.Key = masterPassword.PasswordBasedEncrypt(userName);
+            algorithm_.Key = masterPassword.PasswordBasedEncrypt(userName); // 主密码迭代加密后的bytes作为算法的密钥
             algorithm_.Mode = CipherMode.CBC;
             algorithm_.Padding = PaddingMode.PKCS7;
             algorithm_.BlockSize = 128;
@@ -347,8 +347,8 @@ namespace DawPastrator.Core
         /// </summary>
         /// <param name="input">要处理的密码</param>
         /// <param name="salt">盐，可以来自于服务端config</param>
-        /// <returns></returns>
-        public static string PasswordProcess(this string password, in string salt)
+        /// <returns>主密码加密后的base64字符串</returns>
+        public static string AddSaltAndEncrypt(this string password, in string salt)
         {
             using Rfc2898DeriveBytes pbkdf2 = new Rfc2898DeriveBytes(password, salt.Sha256ToBytes(), 10000, HashAlgorithmName.SHA256);
             return Convert.ToBase64String(pbkdf2.GetBytes(32));

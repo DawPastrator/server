@@ -1,3 +1,4 @@
+using DawPastrator.Server.Services;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
@@ -14,7 +15,12 @@ namespace DawPastrator.Server
     {
         public static void Main(string[] args)
         {
-            CreateHostBuilder(args).Build().Run();
+                        //CreateHostBuilder(args).Build().Run();
+
+            SqliteDatabaseServices
+                        db = new ();
+
+            
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>

@@ -18,7 +18,7 @@ namespace DawPastrator.Server.Services
  
         private readonly IDatabaseServices databaseServices;
 
-        public DefaultDawAuthenticationService(IDatabaseServices databaseServices)
+        public DefaultDawAuthenticationService(IDatabaseServicesOld databaseServices)
         {
             this.databaseServices = databaseServices;
         }
