@@ -17,9 +17,8 @@ namespace DawPastrator.Server
         {
                         //CreateHostBuilder(args).Build().Run();
 
-            SqliteDatabaseServices
-                        db = new ();
-
+            SqliteDatabaseServices db = new ();
+            //db.
             
         }
 

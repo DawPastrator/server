@@ -26,19 +26,21 @@ namespace DawPastrator.Server.Services
         public async Task<DataStorageModel?> GetAsync(int userId)
         {
             var bytes = await databaseServices.GetPasswordsData(userId);
-            var bs4Data = Convert.ToBase64String(bytes);
+            throw new NotImplementedException();
+            //var bs4Data = Convert.ToBase64String(bytes);
 
-            return new DataStorageModel
-            {
-                Bs4Data = bs4Data
-            };
+            //return new DataStorageModel
+            //{
+            //    Bs4Data = bs4Data
+            //};
         }
 
         public async Task StoreAsync(int userId, DataStorageModel model)
         {
             var bytes = Convert.FromBase64String(model.Bs4Data);
 
-            await databaseServices.UpdatePasswordsDataAsync(userId, bytes);
+            //await databaseServices.UpdatePasswordsDataAsync(userId, bytes);
+            throw new NotImplementedException();
         }
 
         

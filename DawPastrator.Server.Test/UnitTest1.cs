@@ -20,50 +20,37 @@ namespace DawPastrator.Server.Test
         [Fact]
         public void TestDatabsae()
         {
-            if (System.IO.File.Exists("data.db"))
-            {
-                // Use a try block to catch IOExceptions, to
-                // handle the case of the file already being
-                // opened by another process.
-                try
-                {
-                    System.IO.File.Delete("data.db");
-                }
-                catch (System.IO.IOException e)
-                {
-                    Console.WriteLine(e.Message);
-                }
-            }
-
             var dbHelper = new SqliteDatabaseServices();
 
             string userName = "cjw";
             string masterPassword = "12adbwjkdwahljdaw31==";
 
-            Debug.Assert(dbHelper.CreateAccountAsync(userName, masterPassword) == DatabaseError.SUCCESS);
+            dbHelper.UserNameHasAlreadyExists(userName);
 
-            int userID = dbHelper.GetUserIDAsync(userName);
+            //Debug.Assert(dbHelper.CreateAccountAsync(userName, masterPassword) == DatabaseError.SUCCESS);
 
-            byte[] passwordsData = new byte[10];
-            Random rnd = new Random();
-            rnd.NextBytes(passwordsData);
+            //int userID = dbHelper.GetUserIDAsync(userName);
 
-            var devicesAndPublicKeysInfo = new List<Tuple<string, string>>();
-            devicesAndPublicKeysInfo.Add(new Tuple<string, string>("device1", "public key1"));
-            devicesAndPublicKeysInfo.Add(new Tuple<string, string>("device2", "public key2"));
+            //byte[] passwordsData = new byte[10];
+            //Random rnd = new Random();
+            //rnd.NextBytes(passwordsData);
 
-            Debug.Assert(dbHelper.UpdatePasswordsDataAsync(userID, passwordsData) == DatabaseError.SUCCESS);
-            Debug.Assert(dbHelper.UpdateDevicesAndPublicKeysInfo(userID, devicesAndPublicKeysInfo) == DatabaseError.SUCCESS);
+            //var devicesAndPublicKeysInfo = new List<Tuple<string, string>>();
+            //devicesAndPublicKeysInfo.Add(new Tuple<string, string>("device1", "public key1"));
+            //devicesAndPublicKeysInfo.Add(new Tuple<string, string>("device2", "public key2"));
 
-            Debug.Assert(dbHelper.VerifyMasterPasswordAsync(userName, masterPassword));
+            //Debug.Assert(dbHelper.UpdatePasswordsDataAsync(userID, passwordsData) == DatabaseError.SUCCESS);
+            //Debug.Assert(dbHelper.UpdateDevicesAndPublicKeysInfo(userID, devicesAndPublicKeysInfo) == DatabaseError.SUCCESS);
 
-            string newPassword = "new password";
-            Debug.Assert(dbHelper.UpdateMasterPassword(userID, newPassword) == DatabaseError.SUCCESS);
+            //Debug.Assert(dbHelper.VerifyMasterPasswordAsync(userName, masterPassword));
 
-            var info = dbHelper.GetDevicesAndPublicKeysInfoAsync(userID);
-            Debug.Assert(info.SequenceEqual(devicesAndPublicKeysInfo));
+            //string newPassword = "new password";
+            //Debug.Assert(dbHelper.UpdateMasterPassword(userID, newPassword) == DatabaseError.SUCCESS);
 
-            Debug.Assert(dbHelper.DeleteAccountAsync(userID) == DatabaseError.SUCCESS);
+            //var info = dbHelper.GetDevicesAndPublicKeysInfoAsync(userID);
+            //Debug.Assert(info.SequenceEqual(devicesAndPublicKeysInfo));
+
+            //Debug.Assert(dbHelper.DeleteAccountAsync(userID) == DatabaseError.SUCCESS);
         }
     }
 }

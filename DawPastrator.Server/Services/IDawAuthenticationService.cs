@@ -1,5 +1,5 @@
 ﻿using DawPastrator.Server.Models;
-
+using DawPastrator.Server.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,14 +18,14 @@ namespace DawPastrator.Server.Services
  
         private readonly IDatabaseServices databaseServices;
 
-        public DefaultDawAuthenticationService(IDatabaseServicesOld databaseServices)
+        public DefaultDawAuthenticationService(IDatabaseServices databaseServices)
         {
             this.databaseServices = databaseServices;
         }
 
         public async Task<ClaimsPrincipal?> VerifyAsync(UserLoginModel model)
         {
-            var userId = databaseServices.GetUserIDAsync(model.UserName);
+            var userId = databaseServices.GetUserIdAsync(model.UserName);
 
             if (await databaseServices.VerifyMasterPasswordAsync(model.UserName, model.Password))
             {
